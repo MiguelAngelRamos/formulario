@@ -3,14 +3,16 @@ import { StyleSheet, View } from 'react-native';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { colors } from './src/theme';
 
-export default function App() {
+const App = () => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       <LoginScreen />
     </View>
   );
-}
+};
+
+export default App;
 
 const styles = StyleSheet.create({
   container: {

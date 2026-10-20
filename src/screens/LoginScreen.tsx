@@ -14,7 +14,7 @@ import { FormInput } from '../components/FormInput';
 import { loginSchema, type LoginFormValues } from '../schemas/login.schema';
 import { colors } from '../theme';
 
-export function LoginScreen() {
+export const LoginScreen = () => {
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   const {
@@ -102,7 +102,7 @@ export function LoginScreen() {
       </View>
     </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   screen: {
