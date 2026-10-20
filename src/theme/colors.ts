@@ -1,3 +1,5 @@
+// Paleta central: los componentes usan colors.text.primary en vez de '#0F172A',
+// así un cambio de color se hace en un solo lugar.
 export const colors = {
   primary: '#2563EB',
   primaryDark: '#1D4ED8',
@@ -26,6 +28,7 @@ export const colors = {
     successBackground: '#F0FDF4',
     warning: '#D97706',
   },
-} as const;
+} as const; // `as const`: todo queda de solo lectura y con su valor literal exacto.
 
+// `typeof colors` crea un tipo a partir del objeto (mismo truco que z.infer).
 export type AppColors = typeof colors;
