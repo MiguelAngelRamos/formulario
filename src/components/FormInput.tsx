@@ -50,41 +50,141 @@ import { colors } from '../theme';
 /*
  * ───────────────────────────── LAS PROPS ─────────────────────────────
  *
- * Leamos la declaración por partes:
+ * Declaración completa (la que está justo debajo de este bloque):
  *
  *   interface FormInputProps<TFieldValues extends FieldValues>
+ *     extends Omit<TextInputProps, 'value' | 'onChangeText'> {
+ *     control: Control<TFieldValues>;
+ *     name: FieldPath<TFieldValues>;
+ *     label: string;
+ *   }
  *
- *   1) <TFieldValues ...>  → GENÉRICO: un "parámetro de tipo". Igual que una
- *      función recibe parámetros de valor, la interfaz recibe un tipo.
- *      Cuando LoginScreen use <FormInput control={control} .../>, TypeScript
- *      deducirá TFieldValues = LoginFormValues = { email: string; password: string }.
+ * ── 1. Dos objetos distintos: no confundirlos ──
  *
- *   2) extends FieldValues → RESTRICCIÓN del genérico: "TFieldValues puede ser
- *      cualquier tipo, SIEMPRE QUE sea un objeto de valores de formulario".
- *      Aquí `extends` significa "debe ser compatible con".
+ *   TFieldValues   = los DATOS del formulario.
+ *                    Ej: { email: string; password: string }
+ *   FormInputProps = las PROPS del componente:
+ *                    control, name, label + las heredadas de TextInput.
  *
- *   extends Omit<TextInputProps, 'value' | 'onChangeText'>
+ *   Las props heredadas (placeholder, keyboardType, secureTextEntry...)
+ *   pertenecen a FormInputProps, NUNCA a TFieldValues. TFieldValues solo
+ *   describe qué campos guarda el formulario y de qué tipo es cada uno.
  *
- *   3) Este segundo `extends` es HERENCIA de interfaz: "FormInputProps tiene
- *      todas las propiedades de este otro tipo, más las que declaro abajo".
+ * ── 2. Partes de la cabecera ──
  *
- *   4) Omit<T, K> → tipo utilitario de TypeScript: "T sin las claves K".
- *      Tomamos todas las props de TextInput y QUITAMOS value y onChangeText,
- *      porque esas las controla RHF. Así, si alguien escribe
- *      <FormInput value="x" />, TypeScript da error: el padre no debe tocarlas.
+ *   FormInputProps            → nombre de la interfaz.
+ *   <TFieldValues ...>        → PARÁMETRO DE TIPO (genérico). Igual que una
+ *                               función recibe valores como parámetros, la
+ *                               interfaz recibe un tipo. NO es el contenido
+ *                               de la interfaz.
+ *   extends FieldValues       → restricción de ese parámetro (punto 3).
+ *   extends Omit<...>         → herencia de la interfaz (punto 3).
+ *   { control; name; label }  → propiedades propias.
  *
- * Resultado: FormInputProps = (props de TextInput − value − onChangeText)
- *                             + control + name + label
+ *   Contenido de la interfaz = propiedades entre llaves + propiedades heredadas.
+ *
+ * ── 3. Los dos `extends` hacen cosas diferentes ──
+ *
+ *   a) DENTRO de < >:  <TFieldValues extends FieldValues>
+ *      RESTRICCIÓN del genérico: "TFieldValues puede ser cualquier tipo,
+ *      SIEMPRE QUE sea un objeto de valores de formulario".
+ *      FieldValues = Record<string, any> (objeto con claves string).
+ *      Aquí `extends` significa "debe ser compatible con". NO agrega
+ *      propiedades a FormInputProps.
+ *
+ *   b) FUERA de < >:   extends Omit<TextInputProps, 'value' | 'onChangeText'>
+ *      HERENCIA de la interfaz: FormInputProps recibe todas las propiedades
+ *      de ese tipo, además de las declaradas entre llaves. SÍ suma propiedades.
+ *
+ *   Regla: dentro de < > restringe; fuera de < > hereda.
+ *
+ * ── 4. Herencia: por qué va en la cabecera y qué produce ──
+ *
+ *   Va en la cabecera porque esa es la gramática de TypeScript, igual que en
+ *   `class Hijo extends Padre {`. El efecto es una fusión: equivale a copiar
+ *   a mano todas las props de TextInput dentro de las llaves, excepto value
+ *   y onChangeText.
+ *
+ *   Omit<T, K> es un tipo utilitario de TypeScript: "T sin las claves K".
+ *
+ *   Las heredadas son casi todas opcionales (llevan ?): el padre puede no
+ *   pasarlas. control, name y label no llevan ?: son obligatorias.
+ *
+ * ── 5. Por qué se omiten value y onChangeText ──
+ *
+ *   Las controla el <Controller> de RHF: value sale del store y onChangeText
+ *   escribe en el store. Si el padre pudiera pasarlas, competirían con el
+ *   formulario. Al omitirlas, <FormInput value="x" /> da error de TypeScript.
+ *
+ * ── 6. Los dos usos de < > ──
+ *
+ *   a) DECLARAR un genérico:  interface FormInputProps<TFieldValues ...>
+ *      Crea el parámetro TFieldValues.
+ *   b) PASAR un argumento de tipo a un genérico existente:  Control<TFieldValues>
+ *      Control ya es genérico (lo define RHF); le pasamos TFieldValues.
+ *
+ *   En la línea `control: Control<TFieldValues>;`
+ *     - a la izquierda de los dos puntos: el NOMBRE de la propiedad (control).
+ *     - a la derecha: su TIPO (Control<TFieldValues>).
+ *   control NO es de tipo TFieldValues ni string: es de tipo
+ *   Control<TFieldValues>, "el objeto control de un formulario cuyos datos
+ *   tienen la forma TFieldValues". Lo mismo aplica a name:
+ *   FieldPath<TFieldValues> = "una de las claves de TFieldValues".
+ *
+ * ── 7. Esto es TypeScript general, no algo de RHF ──
+ *
+ *   Cualquier interfaz puede tener genéricos:
+ *     interface Caja<T> { contenido: T }          → Caja<number>
+ *     interface Par<T, U> { a: T; b: U }          → varios parámetros
+ *     interface Lista<T extends object> { ... }   → restricción (opcional)
+ *     interface Etiqueta<T = string> { valor: T } → valor por defecto
+ *
+ * ── 8. Para qué sirve el genérico aquí ──
+ *
+ *   Solo tipa las propiedades que dependen del formulario: control y name.
+ *   label y las heredadas tienen tipos fijos (string, boolean...), iguales
+ *   para cualquier formulario.
+ *
+ *   Alternativas:
+ *     - Control<LoginFormValues> fijo → solo sirve para el login.
+ *     - Control<FieldValues> general  → name aceptaría cualquier string;
+ *                                       name="emial" no daría error.
+ *     - Con genérico                  → reutilizable Y tipado en cada uso.
+ *
+ * ── 9. Ejemplo expandido: uso en LoginScreen ──
+ *
+ *   LoginScreen escribe <FormInput control={control} name="email" ... />.
+ *   Como su `control` es Control<LoginFormValues>, TypeScript deduce
+ *   TFieldValues = LoginFormValues = { email: string; password: string }
+ *   y la interfaz queda así:
+ *
+ *   {
+ *     control: Control<{ email: string; password: string }>;
+ *     name: "email" | "password";
+ *     label: string;
+ *     // Heredadas de TextInputProps (todas opcionales):
+ *     placeholder?: string;
+ *     keyboardType?: KeyboardTypeOptions;
+ *     secureTextEntry?: boolean;
+ *     autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+ *     style?: StyleProp<TextStyle>;
+ *     onFocus?: (e) => void;
+ *     onBlur?: (e) => void;
+ *     // ...resto de TextInputProps, sin value ni onChangeText.
+ *   }
+ *
+ *   Por eso name="email" ✅ y name="emial" ❌ (error de TS).
  */
 interface FormInputProps<TFieldValues extends FieldValues>
   extends Omit<TextInputProps, 'value' | 'onChangeText'> {
+  // Nombre: control. Tipo: Control<TFieldValues>.
   // El objeto que devuelve useForm(). Contiene el store con los valores,
   // errores y reglas. Sin él, Controller no sabe a qué formulario pertenece.
   control: Control<TFieldValues>;
-  // Nombre del campo dentro del formulario. Gracias a FieldPath, solo se
-  // aceptan claves reales: name="email" ✅, name="emial" ❌ (error de TS).
+  // Nombre: name. Tipo: FieldPath<TFieldValues> (las claves de los datos).
+  // Solo se aceptan claves reales: name="email" ✅, name="emial" ❌ (error de TS).
   name: FieldPath<TFieldValues>;
-  // Texto que se muestra encima del input.
+  // Tipo fijo, no depende del genérico. Texto que se muestra encima del input.
   label: string;
 }
 
